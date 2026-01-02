@@ -102,11 +102,20 @@ class CallExprAst : public ExprAst{
 };
 
 //To store function prototype
-//getter function return reference and const, caller cannot change string and function itself cannot change name
+//getter function returns as reference and const, caller cannot change string and function itself cannot change name
 class PrototypeExprAst : public ExprAst{
     std::string Name;
-    std::vector<std::unique_ptr<ExprAst>> Args;
+    std::vector<std::string> Args;
     public:
-        PrototypeExprAst(const std::string &Name,std::vector<std::unique_ptr<ExprAst>> Args) : Name(Name),Args(std::move(Args)){}
-    const std::string &getName() const {return Name;}
+        PrototypeExprAst(const std::string &Name,std::vector<std::string> Args) : Name(Name),Args(std::move(Args)){}
+        const std::string &getName() const {return Name;}
 };
+
+//function definition (also includes prototype), so used previous Prototype class
+class FunctionExprAst : public ExprAst{
+    std::unique_ptr<PrototypeExprAst> Proto;
+    std::unique_ptr<ExprAst> Body;
+    public:
+        FunctionExprAst(std::unique_ptr<PrototypeExprAst> Proto,std::unique_ptr<ExprAst> Body) : Proto(std::move(Proto)),Body(std::move(Body)) {}
+};
+
