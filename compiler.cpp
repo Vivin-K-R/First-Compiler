@@ -93,7 +93,7 @@ class BinaryExprAst : public ExprAst{
         BinaryExprAst(char Op,std::unique_ptr<ExprAst>Lhs,std::unique_ptr<ExprAst>Rhs) : Op(Op),Lhs(std::move(Lhs)),Rhs(std::move(Rhs)) {}
 };
 
-//vector store points of args of function
+//vector to store pointerss of args of function
 class CallExprAst : public ExprAst{
     std::string Calle;
     std::vector<std::unique_ptr<ExprAst>> Args;
@@ -118,4 +118,82 @@ class FunctionExprAst : public ExprAst{
     public:
         FunctionExprAst(std::unique_ptr<PrototypeExprAst> Proto,std::unique_ptr<ExprAst> Body) : Proto(std::move(Proto)),Body(std::move(Body)) {}
 };
+
+//To read tokens from lexer and move for parsing
+static int CurTok;
+static int getNextToken(){
+    return CurTok = gettok();
+}
+
+//helpers
+std::unique_ptr<ExprAst> LogError(const char* S){
+    fprintf(stderr,"Error : %s\n",S);
+    return nullptr;
+}
+std::unique_ptr<PrototypeExprAst> LogErrorP(const char* S){
+    LogError(S);
+    return nullptr;
+}
+
+//Parser
+//Number exprssion parsing
+//NumberExpr = Number
+static std::unique_ptr<ExprAst> ParseNumberExpr(){
+    auto Result = std::make_unique<NumberExprAst>(Numval);
+    return std::move(Result);
+}
+
+//Paranthesis
+//ParseParanthExpr = ( Expr )
+static std::unique_ptr<ExprAst> ParseParanthExpr(){
+    getNextToken();//take (
+    auto v = ParseExpression();  // reads expression inside ()
+    if(!V) return nullptr;
+    if(CurTok != ')') return LogError("expected ')'");
+    getNextToken();//take )
+    return V;
+}
+
+//identifier
+// = identifier
+// = identifier (Expr*)
+static std::unique_ptr<ExprAst> ParseIdentifierExpr(){
+    std::string IdName = identifierStr;
+    getNextToken();//reading after the identifier
+    if(CurTok != '(') return std::make_unique<VariableExprAst>(IdName);
+    getNextToken();//executes to read next expr when encounterd a '('
+    std::vector<std::unique_ptr<ExprAst>>Args;
+    if(CurTok != ')'){
+        while(true){
+            if(auto Arg = ParseExpression())
+                Args.push_back(std::move(Arg));
+            else
+                return nullptr;
+            if(CurTok == ')') 
+                break;
+            if(CurTok != ',')
+                return LogError("Expected ')' or '.' in argument list.");
+            getNextToken(); // encountered ',' so moving to next expr
+        }
+    }
+    getNextToken(); //encountered ')', moving to next
+    return std::make_unique<CallExprAst>(IdName,std::move(Args));
+}
+
+//driver for parsing expr
+static std::unique_ptr<ExprAst>ParseDriver(){
+    switch (CurTok)
+    {
+    case tok_number:
+        return ParseNumberExpr();
+    case tok_identifier:
+        return ParseIdentifierExpr();
+    case '(':
+        return ParseParanthExpr();
+    default:
+        return LogError("unkown token, expecting an expression.");
+    }
+}
+
+
 
