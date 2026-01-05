@@ -14,6 +14,7 @@ enum Token{
     tok_extern=-3,
     tok_identifier=-4,
     tok_number=-5,
+    tok_error=-6,
 };
 
 static std::string identifierStr;
@@ -41,7 +42,16 @@ static int gettok(){
     //Numeric values
     if(isdigit(LastChar) || LastChar == '.'){
         std::string NumStr;
+        bool seenDot = false;
         do{
+            if(LastChar == '.'){
+                if(seenDot){
+                    while (isdigit(LastChar = getchar()) || LastChar == '.');
+                    return tok_error; // <-- return error token
+                    break;
+                }
+                seenDot = true;
+            }
             NumStr += LastChar;
             LastChar = getchar();
         }while(isdigit(LastChar) || LastChar == '.');
@@ -147,6 +157,7 @@ static std::unique_ptr<ExprAst>ParseBinOpRhs(int ExprPrec, std::unique_ptr<ExprA
 //NumberExpr = Number
 static std::unique_ptr<ExprAst> ParseNumberExpr(){
     auto Result = std::make_unique<NumberExprAst>(Numval);
+    getNextToken();
     return std::move(Result);
 }
 
@@ -196,6 +207,8 @@ static std::unique_ptr<ExprAst>ParseDriver(){
         return ParseNumberExpr();
     case tok_identifier:
         return ParseIdentifierExpr();
+    case tok_error:
+        return LogError("unkown token, invalid number literal.");
     case '(':
         return ParseParanthExpr();
     default:
@@ -205,6 +218,7 @@ static std::unique_ptr<ExprAst>ParseDriver(){
 
 static std::map<char, int>PrecendenceTable;
 static int getTokPrecedence(){
+    //if(CurTok == tok_eof) return -1;
     if(!isascii(CurTok)) return -1; //this allows every single ASCII chars
     int TokPrecedence = PrecendenceTable[CurTok];
     if(TokPrecedence <= 0) return -1; // checks only for allowed binary operators
@@ -292,7 +306,7 @@ static void HandleExtern(){
 }
 
 static void HandleTopLevelExpression() {
-    if (ParseTopLvlExpr()) 
+    if (auto E = ParseTopLvlExpr()) 
         fprintf(stderr, "Parsed a top-level expr\n");
     else 
         getNextToken();
@@ -328,6 +342,3 @@ int main(){
     MainLoop();
     return 0;
 }
-
-
-
